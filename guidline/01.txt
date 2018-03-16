@@ -1,0 +1,36 @@
+Sunduz and Jurijs,
+ 
+Thanks for the meeting today.  I have formulated a few project objectives/questions based on our discussion.  I have listed these below as well as a wish list of data visualization tools that would be useful to have.  No doubt some of these questions are vague and need to be fleshed out better but let’s see what results come from the initial analyses before refining the next set of questions.
+ 
+Topic 1.  Gata2 expression
+How do Gata-2 expression levels in myeloid progenitor cells (CMP + GMP) compare between wild type (WT) and -77 enhancer mutant samples? Violin plot:  WT vs Mutant
+ 
+Is the distribution of Gata-2 expressing cells different between WT and mutant?  Loupe clustering analysis give the appearance that Gata-2 is less localized in the mutant even though expression levels are reduced.  Differences in cell numbers per sample need to be addressed.
+ 
+Topic 2.  Differentially expressed genes
+Since GATA-2 protein directly controls the expression of other genes it is important to establish correlations between Gata-2 levels and the levels of other genes at the single cell level (correlations may be direct or inverse).  Initially this can be done in the whole population but it may be necessary to conduct this analysis in different sub-populations (clusters).
+ 
+Traditional RNA-seq data from separately purified CMPs and GMPs is available for comparison purposes.
+ 
+Topic 3.  Consequences of the -77 enhancer mutation on the cellular composition of the myeloid progenitor population.
+Loupe clustering analysis identified a cohort of cells in WT samples that was almost absent in mutant samples.  This population has gene expression patterns consistent with the cells being granulocytes, possibly neutrophil progenitors.  Can other databases be mined to establish the identities of different clusters of cells? Is there a more sophisticated way to determine if clusters differ between WT and mutant?
+ 
+Useful Tools to have.
+Violin plot generator.
+Gata2 correlation plot generator.
+“Loupe-like” clustering tool that enables visualization of expression patterns of several genes (color coded) simultaneously.
+
+
+
+
+As part of your quality assessment of the scRNA-seq will you be determining the average number of genes detected per cell for each sample?  I have been reading though recent single cell analyses papers and it would be useful to have those numbers to make comparisons to these datasets.  A related piece of data would be comparison (WT vs mutant) of the percentage of cells that have detectable levels of Gata2.
+
+
+
+Data:
+F, I - wt
+A, B - mutant
+
+
+To chose k:
+for every k for evey cluster calculate distribution of count in cells

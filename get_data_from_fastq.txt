@@ -1,0 +1,75 @@
+single cell experiment analysis
+input:
+        - raw fastq for a single cell (might be for different conditions)
+        - single/paired end reads, e.g. R1, R2
+        - several lanes, e.g. L01, L02
+        - umi - label on ends of reads
+        - spike-in - known amounts of rna from a set of known transcripts
+
+output:
+        - expression column vector: row - gene, column - expression quantity for the cell
+        - expression matrix - concatenation of column vectors for all cells
+
+necessary files to get an expression matrix:
+        - .fa - reference genome fasta file. Contains description of chromosomes
+           Used in: STAR 
+        - .gtf - contains information about genes for every chromosome
+           Used in: STAR
+                    QoRTs.jar 
+                    geneBody_coverage.py
+        - .bed - similar to .gtf but with different structure
+           Used in: geneBody_coverage.py - replacement of .gtf
+                    split_bam.py
+        - .chrom.sizes - size of chromosomes
+           Used in: bam2wig.py
+
+procedure:
+        1. QC of raw files
+        2. Alignment
+        3. QC of aligned files
+        4. Expression matrix
+        5. QC of expression matrix
+
+# QC of raw files
+Software: FASTQC  - generates an html output
+          MultiQC - combine all html files in one report
+
+Manual: FASTQC - http://www.bioinformatics.babraham.ac.uk/projects/fastqc/Help/3%20Analysis%20Modules/
+
+Problems:
+        1. Abundance of low-quality scores in first posititons (transient problem)
+        2. Decrease in quality in last positions (general degradation)
+        3. Proportion of nucleotides is not the same
+        4. GC content is not normally distributed (with meand and variance similar to the reference transcriptome)
+        5. Many dublicated reads (not few). However, in several sources it says,
+           it is ok to have high percentage of duplicsates for RNA-seq
+
+Solutions:
+        1. not trim
+        2. trim
+        3. Might be ok for single cell rna
+        4. 
+        5. Might be ok, since experiment is focused to catch the expression of specific genes.
+        
+# Alignment
+Software: STAR: 1. Generate indices
+                2. Alignment
+                3. Bam transformation
+                4. Coordinate sorting
+
+--outSAMtype BAM SortedByCoordinate  - to make a sorted bam file as an output
+
+several lanes:
+you can use
+--readFilesIn Read1a.gz,Read1b.gz Read2a.gz,Read2b.gz
+to map multiple lanes "a","b" ... In this list comma separates different lanes of the same mate (1st or 2nd), while space separates the mates.
+
+# QC of alignment
+Software: RSeQC
+
+Statistical measures:
+            1. total number of reads
+            2. number of transcripts seqnced or detected
+            3. proportion of uniquely mapping reads
+            4. proportion of reads mapping to annotated exonic regions
+Low numbers are indicative of sample degradation and/or bias

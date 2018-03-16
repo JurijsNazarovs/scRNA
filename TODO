@@ -1,0 +1,52 @@
+;; This buffer is for text that is not saved, and for Lisp evaluation.
+;; To create a file, visit it with C-x C-f and enter text in its buffer.
+
+1) dimension reduction, where p - genes, and cells are data points
+2) color cells according to specific gene expression. Gata2 - range of Blue.
+Some other gene - range of red. and etc. Range is bassed on expression level in
+this cell.
+
+3) add variance explanation based on components - cross validation
+
+
+Correlation
+1) Consider clusters of genes after reduction of cells
+
+
+Filtering data
+1) number of 0 cells and genes influence on pca alot
+2) number of genes does not influence so much
+
+
+Do an analysis of variance of pca and cleaning
+
+
+before t-sne decrease dimension with pca
+
+how to chose pca and tsne components number
+
+
+
+x = pd.DataFrame(np.arange(1, 10))
+df = pd.concat([x, x, x, 2*x], axis = 1)
+df.columns = ["x", "y", "c1", "c2"]
+
+import matplotlib.colors
+cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["red"])
+plt.scatter(df['x'], df['y'], cmap = "Blues", c = df['c1'], vmin = 1, vmax= 10)
+plt.show()
+
+
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+
+
+
+## Do a clustering analysis:
+Get indecies of cells for every clsuter and then create new expressions
+and do same analysis
+
+
