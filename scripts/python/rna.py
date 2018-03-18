@@ -101,10 +101,10 @@ class GeneExpression(object):
                                              condition=condition,
                                              sample=sample)
             # Filter
-            geneExpression.collapse()
+            gene_expression.collapse()
             gene_expressions.append(gene_expression)
 
-        return(geneExpressions)
+        return(gene_expressions)
 
     # Instance Methods
     def remove(self, list_remove, what_remove="genes",):
@@ -121,7 +121,7 @@ class GeneExpression(object):
         if len(final_list_remove) != 0:
             self.expression.drop(final_list_remove, axis=axis, inplace=True)
             print(self.condition + "." + self.sample + ": removed " +
-                  len(final_list_remove) + " " + what_remove)
+                  str(len(final_list_remove)) + " " + what_remove)
 
     def getToRemove(self, what_remove="cells", percentage_of_0=0.5, sign=">"):
         # Returns list of cells/genes which are expressed in *sign* then
@@ -188,24 +188,18 @@ class GeneExpression(object):
         self.expression = new_expression
 
     def correlation(self, gene):
-        # import pdb
-        # pdb.set_trace()
         all_genes = list(self.expression.index)
 
         if not gene in self.expression.index:
             correlation = [np.nan for i in range(0, len(all_genes))]
-            correlation = pd.DataFrame(correlation, columns=[gene])
-            correlation.index = all_genes
-            return(correlation)
+        else:
+            correlation = []
+            for gene_tmp in all_genes:
+                gene_expression = self.expression.loc[gene].values
+                gene_tmp_expression = self.expression.loc[gene_tmp].values
 
-        # del rest_genes[rest_genes.index(gene)]
-        correlation = []
-        for gene_tmp in all_genes:
-            gene_expression = self.expression.loc[gene].values
-            gene_tmp_expression = self.expression.loc[gene_tmp].values
-
-            p_corr = pearsonr(gene_expression, gene_tmp_expression)[0]
-            correlation.append(p_corr)
+                p_corr = pearsonr(gene_expression, gene_tmp_expression)[0]
+                correlation.append(p_corr)
 
         correlation = pd.DataFrame(correlation, columns=[gene])
         correlation.index = all_genes
@@ -224,7 +218,7 @@ class GeneExpression(object):
         if isinstance(list_gene_expression, GeneExpression):  # does not work
             list_gene_expression = [list_gene_expression]
 
-        uniq_id = [i.condition + "." + i.sample for i in list_gene_expression]
+        uniq_id = [i.name for i in list_gene_expression]
         gene_expression = [i.expression.loc[gene]
                            for i in list_gene_expression]
 
@@ -233,13 +227,11 @@ class GeneExpression(object):
                 ax = sns.violinplot(data=gene_expression)
                 ax.set(xticklabels=uniq_id,
                        ylabel="count")
-
-            if plt_type == "boxplot":
+            elif plt_type == "boxplot":
                 ax = sns.boxplot(data=gene_expression)
                 ax.set(xticklabels=uniq_id,
                        ylabel="count")
-
-            if plt_type == "hist":
+            elif plt_type == "hist":
                 for i in range(0, len(uniq_id)):
                     ge_tmp = gene_expression[i].values
                     step = np.diff(np.unique(ge_tmp)).min()
@@ -256,15 +248,13 @@ class GeneExpression(object):
                     plt.ylabel("n of cells")
 
                 plt.legend(loc='upper right')
-
-            if plt_type == "kdeplot":
+            elif plt_type == "kdeplot":
                 for i in range(0, len(uniq_id)):
                     sns.kdeplot(gene_expression[i].values,
                                 label=uniq_id[i], shade=True)
 
                 plt.legend(loc='upper right')
-
-            if plt_type == "distplot":
+            elif plt_type == "distplot":
                 for i in range(0, len(uniq_id)):
                     sns.distplot(gene_expression[i].values,
                                  label=uniq_id[i])
@@ -279,6 +269,7 @@ class GeneExpression(object):
                         list_gene_expression,
                         gene,
                         plot_type=["heatmap"]):
+        # plots correlation of one gene with other for different expressions
 
         if isinstance(plot_type, str):
             plot_type = [plot_type]
@@ -286,7 +277,7 @@ class GeneExpression(object):
         if isinstance(list_gene_expression, GeneExpression):  # does not work
             list_gene_expression = [list_gene_expression]
 
-        uniq_id = [i.condition + "." + i.sample for i in list_gene_expression]
+        uniq_id = [i.name for i in list_gene_expression]
         correlation_set = []
         for gene_expression in list_gene_expression:
             correlation_set.append(gene_expression.correlation(gene))
@@ -299,7 +290,7 @@ class GeneExpression(object):
                 with sns.axes_style('dark'):
                     sns.heatmap(correlation_set, yticklabels=False,
                                 cmap='seismic', vmin=-1, vmax=1)
-            if plt_type == "scatter":
+            elif plt_type == "scatter":
                 for col in correlation_set.columns:
                     y = correlation_set.loc[:, col].values
                     x = np.arange(0, len(y))
@@ -308,6 +299,39 @@ class GeneExpression(object):
                     plt.legend()
         plt.title("Correlation of " + gene)
         plt.xticks()
+        plt.show(block=False)
+
+    @classmethod
+    def plot2DLabels(expression, labels):
+        if expression.expression.shape[1] != 2 or \
+                expression.expression.shape[0] == 0:
+            print("expression should have shape (x !=0, 2)")
+            return None
+
+        cmap = plt.cm.jet
+        norm = mpl.colors.BoundaryNorm(
+            np.arange(labels.min() - 0.5, labels.max() + 1, 1), cmap.N)
+
+        legend_color = []
+        for label in set(labels):
+            ind = labels == label
+            plt.scatter(expression.expression.loc[ind, 0],
+                        expression.expression.loc[ind, 1],
+                        label=str(label + 1),
+                        c=labels[ind],
+                        cmap=cmap,
+                        norm=norm,
+                        edgecolors="black")
+            legend_color.append(cmap(norm(label)))
+
+        # Set legend color
+        plt.legend(loc='upper right')
+        ax = plt.gca()
+        leg = ax.get_legend()
+        for i in range(0, len(legend_color)):
+            leg.legendHandles[i].set_color(legend_color[i])
+
+        plt.title(expression.name + ":  k = " + str(labels.max() + 1))
         plt.show(block=False)
 
 
@@ -329,6 +353,7 @@ def removeElementFromList(list_, element):
 
 
 def plotGenesPatterns(original_expression, reduced_expression, genes):
+    # put it in plots
     cmaps = ['Blues', 'Reds', 'Greens', 'Purples']
     if reduced_expression.expression.shape[1] != 2 or \
             reduced_expression.expression.shape[0] == 0:
@@ -346,18 +371,18 @@ def plotGenesPatterns(original_expression, reduced_expression, genes):
                 label="",
                 facecolors='none',
                 edgecolor='grey')
-    plt.title(original_expression.condition + "." + original_expression.sample)
+    plt.title(original_expression.name)
 
     size_step = 100
     size = len(genes) * size_step + 10
     legend_color = []
     for i in range(0, len(genes)):
-        cells = original_expression.expression.loc[genes[i]] > 0
-        if sum(cells) == 0:
+        if not genes[i] in original_expression.expression.index:
             print("No gene " + genes[i] + " is presented")
             continue
+        cells = original_expression.expression.loc[genes[i]] > 0
 
-        colors = np.array(
+        counts = np.array(
             original_expression.expression.loc[genes[i], cells].tolist())
 
         cmap = plt.get_cmap(cmaps[i])
@@ -368,26 +393,27 @@ def plotGenesPatterns(original_expression, reduced_expression, genes):
             None, colors_of_cmap)
 
         norm = mpl.colors.BoundaryNorm(
-            np.arange(0.5, colors.max() + 1, 1), cmap.N)
+            np.arange(0.5, counts.max() + 1, 1), cmap.N)
 
         plt.scatter(reduced_expression.expression.loc[cells, 0],
                     reduced_expression.expression.loc[cells, 1],
-                    c=colors,
+                    c=counts,
                     norm=norm,
-                    label=(genes[i] + ": " + str(colors.max())),
+                    label=(genes[i] + ": " + str(counts.max())),
                     edgecolor="black",
                     cmap=cmap,
                     alpha=0.9,
                     s=size)
         size -= size_step
         legend_color.append(cmap(norm(cmap.N)))
+        max_n_on_cbar = 10
         if len(genes) == 1:
-            if (colors.max() - 1 < 10):
-                plt.colorbar(ticks=np.arange(1, colors.max() + 1, 1),
+            if (counts.max() - 1 < max_n_on_cba):
+                plt.colorbar(ticks=np.arange(1, counts.max() + 1, 1),
                              orientation="horizontal")
             else:
                 plt.colorbar(ticks=np.arange(
-                    1, colors.max() + 1, colors.max() // 10),
+                    1, counts.max() + 1, counts.max() // max_n_on_cba),
                     orientation="horizontal")
 
     # Set legend color
@@ -400,38 +426,56 @@ def plotGenesPatterns(original_expression, reduced_expression, genes):
     plt.show(block=False)
 
 
-def plot2DLabels(expression, labels):
-    if expression.expression.shape[1] != 2 or \
-            expression.expression.shape[0] == 0:
-        print("expression should have shape (x !=0, 2)")
+def plotGenesComparison(original_expression, reduced_expression, genes):
+    # put it in plots
+    colors = ["blue", "red", "yellow"]
+    if reduced_expression.expression.shape[1] != 2 or \
+            reduced_expression.expression.shape[0] == 0:
+        print("reduced_expression should have shape (x !=0, 2)")
+        return None
+    if isinstance(genes, str):
+        genes = [genes]
+    if len(genes) != 2:
+        print("Just 2 genes can be plotted")
         return None
 
-    cmap = plt.cm.jet
-    norm = mpl.colors.BoundaryNorm(
-        np.arange(labels.min() - 0.5, labels.max() + 1, 1), cmap.N)
+    # Main plot
+    plt.scatter(reduced_expression.expression.loc[:, 0],
+                reduced_expression.expression.loc[:, 1],
+                label="",
+                facecolors='none',
+                edgecolor='grey')
+    # plt.title(original_expression.name)
 
+    # Every gene separately
     legend_color = []
-    for label in set(labels):
-        ind = labels == label
-        plt.scatter(expression.expression.loc[ind, 0],
-                    expression.expression.loc[ind, 1],
-                    label=str(label + 1),
-                    c=labels[ind],
-                    cmap=cmap,
-                    norm=norm,
-                    edgecolors="black")
-        legend_color.append(cmap(norm(label)))
+    cells_set = []
+    for i in range(0, len(genes)):
+        if not genes[i] in original_expression.expression.index:
+            print("No gene " + genes[i] + " is presented")
+            return None
+
+        cells = original_expression.expression.loc[genes[i]] > 0
+        cells_set.append(cells.index[cells].tolist())
+
+        plt.scatter(reduced_expression.expression.loc[cells, 0],
+                    reduced_expression.expression.loc[cells, 1],
+                    c=colors[i],
+                    label=genes[i],
+                    edgecolor="black",
+                    alpha=0.9)
+
+    # Genes overlap
+    cells_set = intersect(cells_set)
+    plt.scatter(reduced_expression.expression.loc[cells_set, 0],
+                reduced_expression.expression.loc[cells_set, 1],
+                c=colors[len(colors) - 1],
+                label=" & ".join(genes),
+                edgecolor="black",
+                alpha=0.9)
 
     # Set legend color
     plt.legend(loc='upper right')
-    ax = plt.gca()
-    leg = ax.get_legend()
-    for i in range(0, len(legend_color)):
-        leg.legendHandles[i].set_color(legend_color[i])
-
-    # plt.colorbar(ticks=np.arange(labels.min(), labels.max() + 1, 1))
-    plt.title(expression.condition + "." +
-              expression.sample + ":  k = " + str(labels.max() + 1))
     plt.show(block=False)
 
 
@@ -464,6 +508,7 @@ def confusionMatrixUsingGenes(rep1, labels1, rep2, labels2, threshold=0):
     # chose genes in cluster expression of which > threshold
     confusion_matrix = []
     cluster_genes = {}
+
     for i in set(labels1):
         genes_id = (
             rep1.expression.loc[:, labels1 == i] > threshold).all(axis=1)
@@ -494,52 +539,77 @@ def plotCorrelationMatrix(self, genes):
     correlation_set = pd.concat(correlation_set, axis=1)
     correlation_set.columns = genes
 
+    yticklabels, xticklabels = False, False
+    if len(correlation_set.columns) < 30:
+        yticklabels = True
+    if len(correlation_set.index) < 30:
+        xticklabels = True
+
     with sns.axes_style('dark'):
-        sns.heatmap(correlation_set, yticklabels=False,
+        sns.heatmap(correlation_set,
+                    yticklabels=yticklabels, xticklabels=xticklabels,
                     cmap='seismic', vmin=-1, vmax=1)
-    plt.title(self.condition + "." + self.sample)
-    plt.xticks()
-    # plt.show(block=False)
+
+    plt.title(self.name)
+    plt.show(block=False)
 
 
-# hui = GeneExpression.loadFrom()
-# # GeneExpression.plotDistribution([hui[0]], "Gata2", "hist")
-# # GeneExpression.plotCorrelation(hui, "Gata2")
+def plotCorrelationClusters(experiment_main, label_main,
+                            experiment_relative, label_relative):
+    _, gene_set = confusionMatrixUsingGenes(experiment_main,
+                                            label_main,
+                                            experiment_relative,
+                                            label_relative)
+    # main - what we use to do correlation
+    k_main = max(label_main) + 1
+    k_relative = max(label_relative) + 1
 
+    fig, ax = plt.subplots(nrows=k_main, ncols=k_relative,
+                           sharex=True, sharey=True)
+    cbar_ax = fig.add_axes([.91, .3, .025, .4])
+    #cbar_ax = fig.add_axes([.1, .01, .8, .04])
+    n_plots = 1
+    for i in range(0, k_main):
+        for j in range(0, k_relative):
+            gene_set_tmp = gene_set.get((i, j))
 
-# rg2 = GeneExpression.copyFrom(hui[0])
-# genes = rg2.getToRemove(percentage_of_0=0.20, what_remove="genes")
-# genes = removeElementFromList(genes, "Gata2")
-# rg2.remove(genes, what_remove="genes")
-# cells = rg2.getToRemove(percentage_of_0=0.20, what_remove="cells")
-# rg2.remove(cells, what_remove="cells")
-# for express in hui:
-#     express.remove(genes, what_remove="genes")
+            reduced_experiment = GeneExpression.copyFrom(experiment_main)
+            reduced_experiment.expression =\
+                reduced_experiment.expression.loc[gene_set_tmp[0]]
 
-# GeneExpression.plotCorrelation(hui, "Gata2", "heatmap")
-# GeneExpression.plotDistribution(hui, "Gata2", "violin")
+            # Create correlation map. Not using plotCorrelationMatrix
+            # because of a lot of differences in plot
+            correlation_set = []
+            for gene in gene_set_tmp[1]:
+                correlation_set.append(reduced_experiment.correlation(gene))
 
-# su2 = GeneExpression.copyFrom(rg2)
-# rg2.reduceDimension(p=2, method="tsne")
+            correlation_set = pd.concat(correlation_set, axis=1)
+            correlation_set.columns = gene_set_tmp[1]
 
-# #plotGenesPatterns(su, rg, ["Rpl13", "Gata2", "Mrpl30"])
-# #plotGenesPatterns(su, rg, ["Gata2"])
-# plotGenesPatterns(su2, rg2, ["Rpl13", "Gata2"])
+            # Plot
+            yticklabels, xticklabels = False, False
 
-# #PIK = "pickle.dat"
-# #pickle.dump(rg, open(PIK, "wb"))
-# #pizda = pickle.load(open(PIK, "rb"))
+            if len(correlation_set.columns) < 20:
+                yticklabels = True
+            if len(correlation_set.index) < 20:
+                xticklabels = True
 
+            #plt.subplot(k_main, k_relative, n_plots)
+            with sns.axes_style('dark'):
+                sns.heatmap(correlation_set, ax=ax[i][j],
+                            yticklabels=yticklabels, xticklabels=xticklabels,
+                            cmap='seismic', vmin=-1, vmax=1,
+                            cbar=True,
+                            cbar_ax=cbar_ax)
+                # cbar_kws={"orientation": "horizontal"}
 
-# labels2 = cluster(rg2, p=3)
-# plot2DLabels(rg2, labels2)
+            n_plots += 1
 
-# cm = confusionMatrix(rg, labels, rg2, labels2)
+    plt.suptitle(experiment_main.name)
+    fig.text(0.04, 0.5, "genes of " +
+             experiment_main.name, rotation='vertical')
+    fig.text(0.5, 0.04, "genes of " + experiment_relative.name, ha='center')
 
-
-# cm = confusionMatrixUsingGenes(su2, labels2, su2, labels2, threshold=3)
-# print(cm)
-
-
-# plotCorrelationMatrix(su2, su2.expression.index[1:10])
-# su2.expression.index
+    #mappable = ax[0][k_relative - 1].get_children()[0]
+    #plt.colorbar(mappable, ax, orientation='vertical')
+    plt.show(block=False)
