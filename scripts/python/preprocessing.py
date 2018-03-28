@@ -10,16 +10,37 @@ input_data = "/Users/owner/Box Sync/UW/research/scRna/data/cellranger_10x/train"
 all_experiments = rna.GeneExpression.loadFrom(input_data)
 print("End loading data")
 
+# # Remove genes based on threshold for percentage_of_0
+# thresholds_genes = [0.98989899, 0.98989899, 0.98989899, 0.98989899]
+# for i in range(0, len(all_experiments)):
+#     experiment = all_experiments[i]
+#     genes_remove = experiment.getToRemove(what_remove="genes",
+#                                           percentage_of_0=thresholds_genes[i],
+#                                           sign=">")
+#     genes_remove = rna.removeElementFromList(genes_remove, "Gata2")
+#     experiment.remove(genes_remove, what_remove="genes")
 
-# Remove genes
-thresholds_genes = [0.98989899, 0.98989899, 0.98989899, 0.98989899]
+
+# Remove genes based on threshold for percentage_of_0
 for i in range(0, len(all_experiments)):
     experiment = all_experiments[i]
-    genes_remove = experiment.getToRemove(what_remove="genes",
-                                          percentage_of_0=thresholds_genes[i],
-                                          sign=">")
+    genes_remove = experiment.getToRemove2(what_remove="genes")
     genes_remove = rna.removeElementFromList(genes_remove, "Gata2")
     experiment.remove(genes_remove, what_remove="genes")
+    rna.normalize(experiment)
+
+# # Another version
+# genes_remove = []
+# for i in range(0, 4):
+#     experiment = all_experiments[i]
+#     genes_remove.append(experiment.getToRemove2(what_remove="genes"))
+
+# genes_remove = rna.intersect(genes_remove)
+# for i in range(0, 4):
+#     experiment = all_experiments[i]
+#     experiment.remove(genes_remove, what_remove="genes")
+#     rna.normalize(experiment)
+
 
 # Save data with removed genes
 pickle.dump(all_experiments, open(

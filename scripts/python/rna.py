@@ -90,9 +90,11 @@ class GeneExpression(object):
             cell_names = [row[0]
                           for row in csv.reader(open(cells_path), delimiter="\t")]
             expression_mat = scipy.io.mmread(expression_path).toarray()
-            condition = glob.glob(sample_dir_path + "/type.*")[0]
-            condition = condition.split(
-                sample_dir_path + "/type.")[1]
+            condition = glob.glob(sample_dir_path + "/type.*")
+            condition = condition[0].split(sample_dir_path + "/type.")[1] if\
+                len(condition) > 0 else ""
+            # condition = condition.split(
+            #    sample_dir_path + "/type.")[1]
 
             # Create a GeneExpression object
             gene_expression = GeneExpression(expression_matrix=expression_mat,
@@ -119,9 +121,10 @@ class GeneExpression(object):
             axis = 0
 
         if len(final_list_remove) != 0:
+            print(self.condition + "." + self.sample + ": removing " +
+                  str(len(final_list_remove) / self.expression.shape[axis] * 100) +
+                  "% of " + what_remove)
             self.expression.drop(final_list_remove, axis=axis, inplace=True)
-            print(self.condition + "." + self.sample + ": removed " +
-                  str(len(final_list_remove)) + " " + what_remove)
 
     def getToRemove(self, what_remove="cells", percentage_of_0=0.5, sign=">"):
         # Returns list of cells/genes which are expressed in *sign* then
@@ -149,6 +152,27 @@ class GeneExpression(object):
         else:
             pring("sign ", sign, " is not supoprted")
             return(None)
+
+        return(list(ind_remove[ind_remove].index))
+
+    def getToRemove2(self, what_remove="cells", min_reads=2, n_cells=2):
+        # Returns list of cells/genes which are expressed in *sign* then
+        # *percentage_of_0* of genes/cells
+        what_remove = what_remove.lower()
+        if what_remove.lower() == "cells":
+            axis = 0
+            shape_ind = 0
+        elif what_remove.lower() == "genes":
+            axis = 1
+            shape_ind = 1
+        else:
+            print("what_remove  = ", what_remove, " is not supported")
+            return(None)
+
+        # Detect indicies to remove
+
+        ind_remove = (self.expression >= min_reads).sum(axis=axis)
+        ind_remove = ~(ind_remove >= n_cells)
 
         return(list(ind_remove[ind_remove].index))
 
@@ -302,7 +326,7 @@ class GeneExpression(object):
         plt.show(block=False)
 
     @classmethod
-    def plot2DLabels(expression, labels):
+    def plot2DLabels(cls, expression, labels):
         if expression.expression.shape[1] != 2 or \
                 expression.expression.shape[0] == 0:
             print("expression should have shape (x !=0, 2)")
@@ -341,9 +365,10 @@ def intersect(list_of_lists):
         print("Provided argumnet is not a list")
         return(None)
     new_list = set(list_of_lists[0])
+
     for i in range(1, len(list_of_lists)):
-        new_list = list(new_list & set(list_of_lists[i]))
-    return(new_list)
+        new_list = new_list & set(list_of_lists[i])
+    return(list(new_list))
 
 
 def removeElementFromList(list_, element):
@@ -427,7 +452,7 @@ def plotGenesPatterns(original_expression, reduced_expression, genes):
 
 
 def plotGenesComparison(original_expression, reduced_expression, genes):
-    # put it in plots
+    # Plot genes and their overlap on decreased dimension
     colors = ["blue", "red", "yellow"]
     if reduced_expression.expression.shape[1] != 2 or \
             reduced_expression.expression.shape[0] == 0:
@@ -479,10 +504,17 @@ def plotGenesComparison(original_expression, reduced_expression, genes):
     plt.show(block=False)
 
 
-def cluster(self, k=2, method="kmeans"):
+def normalize(experiment, method="median"):
+    if method == "median":
+        col_sum = np.sum(experiment.expression, axis=0)
+        median_sum = np.median(col_sum)
+        experiment.expression = experiment.expression * median_sum / col_sum
+
+
+def cluster(experiment, k=2, method="kmeans"):
     if method == "kmeans":
         kmeans_model = KMeans(
-            n_clusters=k, random_state=1).fit(self.expression)
+            n_clusters=k, random_state=1).fit(experiment.expression)
         labels = kmeans_model.labels_
 
         return(labels)
@@ -497,6 +529,7 @@ def confusionMatrix(rep1, labels1, rep2, labels2):
         for j in set(labels2):
             elements2 = rep2.expression.index[labels2 == j]
             row_tmp.append(len(intersect([elements1, elements2])))
+
         confusion_matrix.append(row_tmp)
     confusion_matrix = pd.DataFrame(confusion_matrix,
                                     columns=set(labels2),
@@ -505,7 +538,8 @@ def confusionMatrix(rep1, labels1, rep2, labels2):
 
 
 def confusionMatrixUsingGenes(rep1, labels1, rep2, labels2, threshold=0):
-    # chose genes in cluster expression of which > threshold
+    # chose genes in cluster expression of which > threshold in every cell
+    # inside the cluster
     confusion_matrix = []
     cluster_genes = {}
 
@@ -518,6 +552,7 @@ def confusionMatrixUsingGenes(rep1, labels1, rep2, labels2, threshold=0):
             genes_id = (
                 rep2.expression.loc[:, labels2 == j] > threshold).all(axis=1)
             genes2 = rep2.expression.index[genes_id]
+
             common_genes = intersect([genes1, genes2])
             cluster_genes[i, j] = [genes1.tolist(), genes2.tolist()]
 
@@ -567,7 +602,7 @@ def plotCorrelationClusters(experiment_main, label_main,
     fig, ax = plt.subplots(nrows=k_main, ncols=k_relative,
                            sharex=True, sharey=True)
     cbar_ax = fig.add_axes([.91, .3, .025, .4])
-    #cbar_ax = fig.add_axes([.1, .01, .8, .04])
+    # cbar_ax = fig.add_axes([.1, .01, .8, .04])
     n_plots = 1
     for i in range(0, k_main):
         for j in range(0, k_relative):
@@ -594,7 +629,7 @@ def plotCorrelationClusters(experiment_main, label_main,
             if len(correlation_set.index) < 20:
                 xticklabels = True
 
-            #plt.subplot(k_main, k_relative, n_plots)
+            # plt.subplot(k_main, k_relative, n_plots)
             with sns.axes_style('dark'):
                 sns.heatmap(correlation_set, ax=ax[i][j],
                             yticklabels=yticklabels, xticklabels=xticklabels,
@@ -610,6 +645,6 @@ def plotCorrelationClusters(experiment_main, label_main,
              experiment_main.name, rotation='vertical')
     fig.text(0.5, 0.04, "genes of " + experiment_relative.name, ha='center')
 
-    #mappable = ax[0][k_relative - 1].get_children()[0]
-    #plt.colorbar(mappable, ax, orientation='vertical')
+    # mappable = ax[0][k_relative - 1].get_children()[0]
+    # plt.colorbar(mappable, ax, orientation='vertical')
     plt.show(block=False)
