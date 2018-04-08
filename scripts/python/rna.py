@@ -7,6 +7,7 @@ import csv
 import glob
 import copy
 import pickle
+import sys
 
 # stat
 from scipy.stats.stats import pearsonr
@@ -109,7 +110,14 @@ class GeneExpression(object):
         return(gene_expressions)
 
     # Instance Methods
-    def remove(self, list_remove, what_remove="genes",):
+    def info(self):
+        print("Sample: " + self.sample)
+        print("Condition: " + self.condition)
+        print("Unique name: " + self.name)
+        print("Number fo genes: %d" % (self.expression.shape[0]))
+        print("Number of cells: %d" % (self.expression.shape[1]))
+
+    def remove(self, list_remove, what_remove="genes"):
         # Removes cells/genes from list_to_remove
         if what_remove.lower() == "cells":
             final_list_remove = intersect(
@@ -149,13 +157,16 @@ class GeneExpression(object):
         elif sign == ">":
             ind_remove = ind_remove > round(
                 percentage_of_0 * self.expression.shape[shape_ind])
+        elif sign == "=":
+            ind_remove = ind_remove == round(
+                percentage_of_0 * self.expression.shape[shape_ind])
         else:
-            pring("sign ", sign, " is not supoprted")
+            print("sign ", sign, " is not supoprted")
             return(None)
 
         return(list(ind_remove[ind_remove].index))
 
-    def getToRemove2(self, what_remove="cells", min_reads=2, n_cells=2):
+    def getToRemoveMinCount(self, what_remove="genes", min_reads=2, n_cells=2):
         # Returns list of cells/genes which are expressed in *sign* then
         # *percentage_of_0* of genes/cells
         what_remove = what_remove.lower()
@@ -170,7 +181,6 @@ class GeneExpression(object):
             return(None)
 
         # Detect indicies to remove
-
         ind_remove = (self.expression >= min_reads).sum(axis=axis)
         ind_remove = ~(ind_remove >= n_cells)
 
@@ -234,7 +244,8 @@ class GeneExpression(object):
     def plotDistribution(cls,
                          list_gene_expression,
                          gene,
-                         plot_type=["violin"]):
+                         plot_type=["violin"],
+                         orient="v"):
 
         if isinstance(plot_type, str):
             plot_type = [plot_type]
@@ -248,13 +259,21 @@ class GeneExpression(object):
 
         for plt_type in plot_type:
             if plt_type == "violin":
-                ax = sns.violinplot(data=gene_expression)
-                ax.set(xticklabels=uniq_id,
-                       ylabel="count")
+                ax = sns.violinplot(data=gene_expression, orient=orient)
+                if orient == "v":
+                    ax.set(xticklabels=uniq_id,
+                           ylabel="count")
+                else:
+                    ax.set(yticklabels=uniq_id,
+                           xlabel="count")
             elif plt_type == "boxplot":
-                ax = sns.boxplot(data=gene_expression)
-                ax.set(xticklabels=uniq_id,
-                       ylabel="count")
+                ax = sns.boxplot(data=gene_expression, orient=orient)
+                if orient == "v":
+                    ax.set(xticklabels=uniq_id,
+                           ylabel="count")
+                else:
+                    ax.set(yticklabels=uniq_id,
+                           xlabel="count")
             elif plt_type == "hist":
                 for i in range(0, len(uniq_id)):
                     ge_tmp = gene_expression[i].values
@@ -377,7 +396,9 @@ def removeElementFromList(list_, element):
     return list_
 
 
-def plotGenesPatterns(original_expression, reduced_expression, genes):
+def plotGenesPatterns(original_expression, reduced_expression, genes,
+                      is_normalized=True):
+
     # put it in plots
     cmaps = ['Blues', 'Reds', 'Greens', 'Purples']
     if reduced_expression.expression.shape[1] != 2 or \
@@ -387,8 +408,10 @@ def plotGenesPatterns(original_expression, reduced_expression, genes):
     if isinstance(genes, str):
         genes = [genes]
     if len(genes) > len(cmaps):
-        print("Just " + len(cmaps) + " genes can be plotted")
+        print("Just " + str(len(cmaps)) + " genes can be plotted")
         genes = genes[0:len(cmaps)]
+        print("Following genes will be plotted:")
+        print(genes)
 
     # Main plot
     plt.scatter(reduced_expression.expression.loc[:, 0],
@@ -409,6 +432,8 @@ def plotGenesPatterns(original_expression, reduced_expression, genes):
 
         counts = np.array(
             original_expression.expression.loc[genes[i], cells].tolist())
+        if is_normalized:
+            counts = np.round(np.power(10, counts)) - 1
 
         cmap = plt.get_cmap(cmaps[i])
         colors_of_cmap = cmap(np.linspace(0.2, 1, cmap.N))  # del white part
@@ -424,21 +449,22 @@ def plotGenesPatterns(original_expression, reduced_expression, genes):
                     reduced_expression.expression.loc[cells, 1],
                     c=counts,
                     norm=norm,
-                    label=(genes[i] + ": " + str(counts.max())),
+                    label="%s: %.2f" % (genes[i], counts.max()),
                     edgecolor="black",
                     cmap=cmap,
                     alpha=0.9,
                     s=size)
         size -= size_step
+
         legend_color.append(cmap(norm(cmap.N)))
         max_n_on_cbar = 10
         if len(genes) == 1:
-            if (counts.max() - 1 < max_n_on_cba):
+            if (counts.max() - 1 < max_n_on_cbar):
                 plt.colorbar(ticks=np.arange(1, counts.max() + 1, 1),
                              orientation="horizontal")
             else:
                 plt.colorbar(ticks=np.arange(
-                    1, counts.max() + 1, counts.max() // max_n_on_cba),
+                    1, counts.max() + 1, counts.max() // max_n_on_cbar),
                     orientation="horizontal")
 
     # Set legend color
@@ -470,7 +496,7 @@ def plotGenesComparison(original_expression, reduced_expression, genes):
                 label="",
                 facecolors='none',
                 edgecolor='grey')
-    # plt.title(original_expression.name)
+    plt.title(original_expression.name)
 
     # Every gene separately
     legend_color = []
@@ -504,11 +530,15 @@ def plotGenesComparison(original_expression, reduced_expression, genes):
     plt.show(block=False)
 
 
-def normalize(experiment, method="median"):
+def normalize(experiments, method="median"):
     if method == "median":
-        col_sum = np.sum(experiment.expression, axis=0)
-        median_sum = np.median(col_sum)
-        experiment.expression = experiment.expression * median_sum / col_sum
+        col_sums = [np.sum(exp.expression, axis=0) for exp in experiments]
+        col_sums = [s for sublist in col_sums for s in sublist]
+
+        median_sum = np.median(col_sums)
+        for experiment in experiments:
+            col_sum = np.sum(experiment.expression, axis=0)
+            experiment.expression = experiment.expression * median_sum / col_sum
 
 
 def cluster(experiment, k=2, method="kmeans"):
@@ -589,6 +619,34 @@ def plotCorrelationMatrix(self, genes):
     plt.show(block=False)
 
 
+def plotClusterExpression(self, cluster_labels):
+    expression = self.expression
+    expression.columns = cluster_labels
+    expression.sort_index(axis=1, inplace=True)
+
+    lut = dict(zip(set(expression.columns),
+                   sns.mpl_palette("hsv", len(set(expression.columns)))))
+    col_colors = pd.DataFrame(expression.columns)[0].map(lut)
+
+    expression.columns.name = "Cells clusters"
+    expression.index.name = "Genes"
+    sns_plot = sns.clustermap(expression, col_colors=col_colors.values,
+                              col_cluster=False, row_cluster=False,
+                              cmap="coolwarm",
+                              yticklabels=False, xticklabels=False)
+    #sns_plot.ax_heatmap.set_xlabel = "Cells cluster"
+    #sns_plot.ax_heatmap.set_ylabel = "Genes"
+
+    # Add legend for clusters
+    for label in set(cluster_labels):
+        sns_plot.ax_col_dendrogram.bar(0, 0, color=lut[label],
+                                       label=label, linewidth=0)
+        sns_plot.ax_col_dendrogram.legend(loc="center", ncol=6)
+
+    # Move color bar
+    sns_plot.cax.set_position([.15, .2, .03, .45])
+
+
 def plotCorrelationClusters(experiment_main, label_main,
                             experiment_relative, label_relative):
     _, gene_set = confusionMatrixUsingGenes(experiment_main,
@@ -648,3 +706,14 @@ def plotCorrelationClusters(experiment_main, label_main,
     # mappable = ax[0][k_relative - 1].get_children()[0]
     # plt.colorbar(mappable, ax, orientation='vertical')
     plt.show(block=False)
+
+
+def pickleDumpLargeFile(obj, filepath):
+    # This is a defensive way to write pickle.write, allowing for very large
+    # files on all platforms
+    max_bytes = 2**31 - 1
+    bytes_out = pickle.dumps(obj)
+    n_bytes = sys.getsizeof(bytes_out)
+    with open(filepath, 'wb') as f_out:
+        for idx in range(0, n_bytes, max_bytes):
+            f_out.write(bytes_out[idx:idx + max_bytes])

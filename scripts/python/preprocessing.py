@@ -1,58 +1,70 @@
 import rna
 import numpy as np
 import pickle
+import os
 
 import importlib
 importlib.reload(rna)
 
+path_input = "/Users/owner/Box Sync/UW/research/scRna/data/cellranger_10x/train/"
+path_result = "/Users/owner/Box Sync/UW/research/scRna/proceeded_data/"
+if not os.path.exists(path_result):
+    os.makedirs(path_result)
+
 print("Start loading data")
-input_data = "/Users/owner/Box Sync/UW/research/scRna/data/cellranger_10x/train"
-all_experiments = rna.GeneExpression.loadFrom(input_data)
+all_experiments = rna.GeneExpression.loadFrom(path_input)
 print("End loading data")
 
-# # Remove genes based on threshold for percentage_of_0
-# thresholds_genes = [0.98989899, 0.98989899, 0.98989899, 0.98989899]
-# for i in range(0, len(all_experiments)):
-#     experiment = all_experiments[i]
-#     genes_remove = experiment.getToRemove(what_remove="genes",
-#                                           percentage_of_0=thresholds_genes[i],
-#                                           sign=">")
-#     genes_remove = rna.removeElementFromList(genes_remove, "Gata2")
-#     experiment.remove(genes_remove, what_remove="genes")
+# Remove genes with min.reads = 2 in at least 2 cells
+print("Remove genes which do not have at least 2 genes in at least 2 cells")
+genes_remove = []
+for experiment in all_experiments:
+    genes_remove_tmp = experiment.getToRemoveMinCount(what_remove="genes",
+                                                      min_reads=2,
+                                                      n_cells=2)
+    print(len(genes_remove_tmp) / experiment.expression.shape[0] * 100)
+    genes_remove.append(genes_remove_tmp)
 
-
-# Remove genes based on threshold for percentage_of_0
-for i in range(0, len(all_experiments)):
-    experiment = all_experiments[i]
-    genes_remove = experiment.getToRemove2(what_remove="genes")
-    genes_remove = rna.removeElementFromList(genes_remove, "Gata2")
+# Get intersection of removing genes
+genes_remove = rna.intersect(genes_remove)
+for experiment in all_experiments:
     experiment.remove(genes_remove, what_remove="genes")
-    rna.normalize(experiment)
-
-# # Another version
-# genes_remove = []
-# for i in range(0, 4):
-#     experiment = all_experiments[i]
-#     genes_remove.append(experiment.getToRemove2(what_remove="genes"))
-
-# genes_remove = rna.intersect(genes_remove)
-# for i in range(0, 4):
-#     experiment = all_experiments[i]
-#     experiment.remove(genes_remove, what_remove="genes")
-#     rna.normalize(experiment)
-
-
-# Save data with removed genes
-pickle.dump(all_experiments, open(
-    "/Users/owner/Box Sync/UW/research/scRna/proceeded_data/removed_genes.pkl", 'wb'))
-
-
+    print(experiment.expression.shape[0])
+# Median normalization
+rna.normalize(all_experiments)
+# Log normalization
 for experiment in all_experiments:
-    experiment.reduceDimension(p=2, method="tsne")
+    experiment.expression = np.log10(1 + experiment.expression)
 
-pickle.dump(all_experiments, open(
-    "/Users/owner/Box Sync/UW/research/scRna/proceeded_data/tsne_2.pkl", 'wb'))
+pickle.dump(all_experiments, open(path_result + "removed_genes.pkl", 'wb'))
 
+# Dimension reduction for combined data
+combined_experiments = rna.GeneExpression.combine(all_experiments)
 
+print("pca")
+combined_experiments.reduceDimension(p=6000, method="tsvd")
+combined_experiments.expression = combined_experiments.expression.T
+pickle.dump(combined_experiments, open(path_result + "pca_combined.pkl", 'wb'))
+
+print("t-sne")
+combined_experiments.reduceDimension(p=2, method="tsne")
+pickle.dump(combined_experiments, open(
+    path_result + "pca+tsne_combined.pkl", 'wb'))
+
+# Splitting reduced dimension experiments
+reduced_experiments = []
+prev_step = 0
 for experiment in all_experiments:
-    print(experiment.expression.shape)
+    new_step = prev_step + experiment.expression.shape[1]
+    tmp = rna.GeneExpression.copyFrom(experiment)
+    tmp.expression = combined_experiments.expression.iloc[prev_step:new_step, :]
+    prev_step = new_step
+    reduced_experiments.append(tmp)
+
+# Check dimensions
+for i in range(0, len(reduced_experiments)):
+    print(reduced_experiments[i].expression.shape[0],
+          all_experiments[i].expression.shape[1])
+
+pickle.dump(reduced_experiments, open(
+    path_result + "norm_log_pca_tsne.pkl", 'wb'))
