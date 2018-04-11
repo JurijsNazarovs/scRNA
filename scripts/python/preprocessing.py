@@ -13,6 +13,8 @@ if not os.path.exists(path_result):
 
 print("Start loading data")
 all_experiments = rna.GeneExpression.loadFrom(path_input)
+for experiment in all_experiments:
+    print(experiment.name)
 print("End loading data")
 
 # Remove genes with min.reads = 2 in at least 2 cells
