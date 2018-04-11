@@ -29,7 +29,7 @@ class GeneExpression(object):
                  expression_matrix,
                  gene_names=None,
                  cell_names=None,
-                 condition=None,
+                 condition="condition",
                  sample="sample"):
         if isinstance(expression_matrix, pd.DataFrame):
             self.expression = expression_matrix
@@ -530,6 +530,77 @@ def plotGenesComparison(original_expression, reduced_expression, genes):
     plt.show(block=False)
 
 
+def plotGenesComparisonWithThreshold(original_expression, reduced_expression, genes):
+        # Plot genes and their overlap on decreased dimension
+    colors = ["blue", "red", "yellow"]
+    if reduced_expression.expression.shape[1] != 2 or \
+            reduced_expression.expression.shape[0] == 0:
+        print("reduced_expression should have shape (x !=0, 2)")
+        return None
+    if isinstance(genes, str):
+        genes = [genes]
+    if len(genes) != 2:
+        print("Just 2 genes can be plotted")
+        return None
+
+    # Main plot
+    plt.scatter(reduced_expression.expression.loc[:, 0],
+                reduced_expression.expression.loc[:, 1],
+                label="",
+                facecolors='none',
+                edgecolor='grey')
+    plt.title(original_expression.name)
+
+    # Every gene separately
+    legend_color = []
+    thresholds = []
+    for i in range(0, len(genes)):
+        if not genes[i] in original_expression.expression.index:
+            print("No gene " + genes[i] + " is presented")
+            return None
+        thresholds.append(original_expression.expression.loc[genes[i]].mean())
+
+    # Blue
+    cells = (original_expression.expression.loc[genes[0]] >= thresholds[0]) &\
+            (original_expression.expression.loc[genes[1]] < thresholds[1])
+
+    plt.scatter(reduced_expression.expression.loc[cells, 0],
+                reduced_expression.expression.loc[cells, 1],
+                c=colors[0],
+                label=("%s >= %.2f & %s < %.2f" %
+                       (genes[0], thresholds[0], genes[1], thresholds[1])),
+                edgecolor="black",
+                alpha=0.9)
+
+    # Red
+    cells = (original_expression.expression.loc[genes[0]] <= thresholds[0]) &\
+            (original_expression.expression.loc[genes[1]] > thresholds[1])
+
+    plt.scatter(reduced_expression.expression.loc[cells, 0],
+                reduced_expression.expression.loc[cells, 1],
+                c=colors[1],
+                label=("%s <= %.2f & %s > %.2f" %
+                       (genes[0], thresholds[0], genes[1], thresholds[1])),
+                edgecolor="black",
+                alpha=0.9)
+
+    # Yellow
+    cells = (original_expression.expression.loc[genes[0]] >= thresholds[0]) &\
+            (original_expression.expression.loc[genes[1]] > thresholds[1])
+
+    plt.scatter(reduced_expression.expression.loc[cells, 0],
+                reduced_expression.expression.loc[cells, 1],
+                c=colors[2],
+                label=("%s >= %.2f & %s > %.2f" %
+                       (genes[0], thresholds[0], genes[1], thresholds[1])),
+                edgecolor="black",
+                alpha=0.9)
+
+    # Set legend color
+    plt.legend(loc='lower left')
+    plt.show(block=False)
+
+
 def normalize(experiments, method="median"):
     if method == "median":
         col_sums = [np.sum(exp.expression, axis=0) for exp in experiments]
@@ -619,8 +690,11 @@ def plotCorrelationMatrix(self, genes):
     plt.show(block=False)
 
 
-def plotClusterExpression(self, cluster_labels):
-    expression = self.expression
+def plotClusterExpression(self, cluster_labels,
+                          row_cluster=False, col_clusters=False,
+                          yticks=False, xticks=False):
+    # Plots heatmap with labels for columns sorted together
+    expression = pd.DataFrame.copy(self.expression)
     expression.columns = cluster_labels
     expression.sort_index(axis=1, inplace=True)
 
@@ -631,14 +705,14 @@ def plotClusterExpression(self, cluster_labels):
     expression.columns.name = "Cells clusters"
     expression.index.name = "Genes"
     sns_plot = sns.clustermap(expression, col_colors=col_colors.values,
-                              col_cluster=False, row_cluster=False,
-                              cmap="coolwarm",
-                              yticklabels=False, xticklabels=False)
+                              col_cluster=col_clusters, row_cluster=row_cluster,
+                              cmap="gnuplot2",
+                              yticklabels=yticks, xticklabels=xticks)
     #sns_plot.ax_heatmap.set_xlabel = "Cells cluster"
     #sns_plot.ax_heatmap.set_ylabel = "Genes"
 
     # Add legend for clusters
-    for label in set(cluster_labels):
+    for label in sorted(set(cluster_labels)):
         sns_plot.ax_col_dendrogram.bar(0, 0, color=lut[label],
                                        label=label, linewidth=0)
         sns_plot.ax_col_dendrogram.legend(loc="center", ncol=6)
