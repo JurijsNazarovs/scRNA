@@ -7,7 +7,7 @@ import importlib
 importlib.reload(rna)
 
 path_input = "/Users/owner/Box Sync/UW/research/scRna/data/cellranger_10x/train/"
-path_result = "/Users/owner/Box Sync/UW/research/scRna/proceeded_data/"
+path_result = "/Users/owner/Box Sync/UW/research/scRna/data_proceeded/"
 if not os.path.exists(path_result):
     os.makedirs(path_result)
 
@@ -32,13 +32,26 @@ genes_remove = rna.intersect(genes_remove)
 for experiment in all_experiments:
     experiment.remove(genes_remove, what_remove="genes")
     print(experiment.expression.shape[0])
+pickle.dump(all_experiments, open(
+    path_result + "removed_genes.pkl", 'wb'))
+
+for experiment in all_experiments:
+    experiment.expression.to_csv(path_result + experiment.name + "_rg.csv",
+                                 index=True,
+                                 header=True)
+
 # Median normalization
 rna.normalize(all_experiments)
 # Log normalization
 for experiment in all_experiments:
     experiment.expression = np.log10(1 + experiment.expression)
+pickle.dump(all_experiments, open(
+    path_result + "removed_genes_med_log.pkl", 'wb'))
 
-pickle.dump(all_experiments, open(path_result + "removed_genes.pkl", 'wb'))
+for experiment in all_experiments:
+    experiment.expression.to_csv(path_result + experiment.name + "_rg_med_log.csv",
+                                 index=True,
+                                 header=True)
 
 # Dimension reduction for combined data
 combined_experiments = rna.GeneExpression.combine(all_experiments)
