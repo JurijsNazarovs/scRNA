@@ -98,11 +98,6 @@ for i in range(0, len(selected_k)):
     plt.savefig(plots_path + "cluster_" + experiment.name + ".png")
     plt.close()
 
-# Write in csv for R
-edit_experiments[0].expression.to_csv("single_expression.csv",
-                                      index=False,
-                                      header=True)
-
 
 # Other heatmaps variation
 
@@ -116,10 +111,11 @@ col_labels = list(chain.from_iterable(
 rna.plotClusterExpression(combined_experiments, col_labels, row_cluster=True)
 plt.savefig(plots_path + "combined_rows-cluster.png")
 plt.close()
+
+
 # 2)  row by samples (where for each gene we only have 4*4 values that depict its
 # (25% quantile, median, mean, 75th quantile) expressionfor each sample) - allow
-# clustering of the genes, but not the columns.
-
+# clustering of the genes, but not the columns.xs
 info = {}
 for experiment in edit_experiments:
     data_tmp = experiment.expression.transpose()
