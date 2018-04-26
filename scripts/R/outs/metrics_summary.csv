@@ -1,0 +1,2 @@
+Number of Cells,Mean Reads per Cell,Median Genes per Cell,Number of Reads,Valid Barcodes,Reads Mapped Confidently to Transcriptome,Reads Mapped Confidently to Exonic Regions,Reads Mapped Confidently to Intronic Regions,Reads Mapped Confidently to Intergenic Regions,cDNA PCR Duplication,Q30 Bases in Barcode,Q30 Bases in Read 1,Q30 Bases in Sample Index,Q30 Bases in UMI,Fraction Reads in Cells,Median UMI Counts per Cell
+"2,700","68,881",817,"185,980,783",96.3%,66.0%,69.4%,15.9%,3.5%,94.0%,70.9%,93.0%,97.2%,96.0%,96.8%,"2,197"
