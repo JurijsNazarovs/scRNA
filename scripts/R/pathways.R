@@ -1,6 +1,14 @@
+## Script to crate pathways accroding to a gskb library
+## Based on pathways_name pathways
+## Input: filtered experiment
+## Output: experiment with corresponding to genes pathways in .csv format
+##         with summ of values for same pathways
 library("gskb")
 
 loadData <- function(data_name){
+    ## Function to load from pathways_name
+    ## otherwise I cant use pathways_name as a variable
+    ## for pathways
     e <- new.env()
     name <- data(list = data_name, envir = e)[1]
     e[[name]]
@@ -28,12 +36,10 @@ args = commandArgs(trailingOnly=TRUE)
 experiment_path <- args[1]
 experiment_name <- unlist(strsplit(experiment_path, "/"))
 experiment_name <- experiment_name[length(experiment_name)]
-
 out_path <- args[2]
 out_file <- paste0(out_path, "/", experiment_name)
 
-
-print(experiment_path)
+print(paste0("> Started for ", experiment_path)
 
 ## Read data
 pathways <- loadData(pathways_name) # possible pathways:
