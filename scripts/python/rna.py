@@ -397,10 +397,10 @@ def removeElementFromList(list_, element):
 
 
 def plotGenesPatterns(original_expression, reduced_expression, genes,
-                      is_normalized=True):
+                      is_normalized=True, cmap_norm=None, is_legend=True):
 
     # put it in plots
-    cmaps = ['Blues', 'Reds', 'Greens', 'Purples']
+    cmaps = ["hot", 'Blues', 'Reds', 'Greens', 'Purples']
     if reduced_expression.expression.shape[1] != 2 or \
             reduced_expression.expression.shape[0] == 0:
         print("reduced_expression should have shape (x !=0, 2)")
@@ -418,7 +418,7 @@ def plotGenesPatterns(original_expression, reduced_expression, genes,
                 reduced_expression.expression.loc[:, 1],
                 label="",
                 facecolors='none',
-                edgecolor='grey')
+                edgecolor='none')  # change for grey
     plt.title(original_expression.name)
 
     size_step = 100
@@ -436,14 +436,19 @@ def plotGenesPatterns(original_expression, reduced_expression, genes,
             counts = np.round(np.power(10, counts)) - 1
 
         cmap = plt.get_cmap(cmaps[i])
-        colors_of_cmap = cmap(np.linspace(0.2, 1, cmap.N))  # del white part
+        colors_of_cmap = cmap(np.linspace(
+            0.2, 1, cmap.N))  # del white part
+        colors_of_cmap = np.flip(colors_of_cmap, axis=0)
 
         # Create a new colormap from those colors
         cmap = mpl.colors.LinearSegmentedColormap.from_list(
             None, colors_of_cmap)
 
-        norm = mpl.colors.BoundaryNorm(
-            np.arange(0.5, counts.max() + 1, 1), cmap.N)
+        if cmap_norm == None:
+            norm = mpl.colors.BoundaryNorm(
+                np.arange(0.5, counts.max() + 1, 1), cmap.N)
+        else:
+            norm = cmap_norm[i]
 
         plt.scatter(reduced_expression.expression.loc[cells, 0],
                     reduced_expression.expression.loc[cells, 1],
@@ -456,25 +461,27 @@ def plotGenesPatterns(original_expression, reduced_expression, genes,
                     s=size)
         size -= size_step
 
-        legend_color.append(cmap(norm(cmap.N)))
-        max_n_on_cbar = 10
-        if len(genes) == 1:
-            if (counts.max() - 1 < max_n_on_cbar):
-                plt.colorbar(ticks=np.arange(1, counts.max() + 1, 1),
-                             orientation="horizontal")
-            else:
-                plt.colorbar(ticks=np.arange(
-                    1, counts.max() + 1, counts.max() // max_n_on_cbar),
-                    orientation="horizontal")
+        if is_legend:
+            legend_color.append(cmap(norm(cmap.N)))
+            max_n_on_cbar = 10
+            if len(genes) == 1:
+                if (counts.max() - 1 < max_n_on_cbar):
+                    plt.colorbar(ticks=np.arange(1, counts.max() + 1, 1),
+                                 orientation="horizontal")
+                else:
+                    plt.colorbar(ticks=np.arange(
+                        1, counts.max() + 1, counts.max() // max_n_on_cbar),
+                        orientation="horizontal")
 
     # Set legend color
-    plt.legend(loc='upper right')
-    ax = plt.gca()
-    leg = ax.get_legend()
-    for i in range(0, len(legend_color)):
-        leg.legendHandles[i].set_color(legend_color[i])
+    if is_legend:
+        plt.legend(loc='upper right')
+        ax = plt.gca()
+        leg = ax.get_legend()
+        for i in range(0, len(legend_color)):
+            leg.legendHandles[i].set_color(legend_color[i])
 
-    plt.show(block=False)
+    # plt.show(block=False)
 
 
 def plotGenesComparison(original_expression, reduced_expression, genes):
