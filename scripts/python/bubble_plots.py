@@ -90,6 +90,10 @@ if __name__ == "__main__":
     all_experiments = pickle.load(open(sys.argv[2], 'rb'))
     reduced_experiments = pickle.load(open(sys.argv[3], 'rb'))
     plots_path = sys.argv[4]
+    if len(sys.argv) > 5:
+        is_normalized = sys.argv[5]
+    else:
+        is_normalized = False
 
     # gene_of_interest = "Gata2"
     # all_experiments = pickle.load(open(
@@ -100,4 +104,5 @@ if __name__ == "__main__":
     make_plot(gene_of_interest,
               all_experiments,
               reduced_experiments,
-              plots_path=plots_path)
+              plots_path=plots_path,
+              is_normalized=is_normalized)
